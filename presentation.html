@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>A Whistlestop Tour of Banking Interchange Formats</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: normal;
+      }
+	  .remark-code-line { font-size: 120%; }
+	  img {
+         max-height: 600px;
+         display: block;
+         margin-left: auto;
+         margin-right: auto;
+	  }
+	  .white {
+        color: white;
+	  }
+	  .remark-slide-content {
+		background-position: center;
+		background-repeat: no-repeat;
+		background-size: cover;
+	  }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+	  .image-100 img {
+		    width: 100%;
+	  }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+background-image: url(london_from_the_air.jpg)
+# A Whistlestop Tour of<br />Banking Interchange Formats
+
+![:scale 80%](img/punchcard.png)
+
+<br />
+
+Lee Johnson (LEEJO / leejo / lee@payprop.com)
+
+(Hit "P" for the notes and "?" for help)
+
+???
+
+I'm sure you all know what the image is?
+
+It's the Hollerith encoding (punchcard) of the 1964 EBCDIC character set
+
+Also known as - the root source of technical debt for what I'm going to talk about
+
+---
+# Some Background
+
+--
+
+--
+
+???
+
+---
+# Glossary of Terms
+
+* Batch
+
+* EFT
+
+* Real Time
+
+* EBCDIC
+
+---
+https://www.numeral.io/blog/bank-file-message-formats
+
+0. Bespoke TXT -
+1. BAI / BAI2 - 
+2. Bacs Standard 18 (UK) - 
+3. APACS 70 / ISO8583 - 
+4. ACH’s NACHA (US) - 
+5. CFONB files - https://www.cfonb.org/
+6. Swift MT messages - https://www2.swift.com/knowledgecentre/publications/us9m_20240719/2.0?topic=mt940-format-spec.htm
+7. ISO 20022 messages - https://www.iso20022.org/iso-20022-message-definitions
+8. Shiny New APIs? - GoCardless, Stripe, etc?
+
+---
+class: center, middle
+
+# Questions / Comments?
+
+    </textarea>
+    <script src="https://remarkjs.com/downloads/remark-latest.min.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+        remark.macros['scale'] = function (percentage) {
+            var url = this;
+            return '<center><img src="' + url + '" style="width: ' + percentage + '" /></center>';
+        };
+
+		var slideshow = remark.create({
+		});
+    </script>
+  </body>
+</html>
