@@ -58,42 +58,1175 @@ It's the Hollerith encoding (punchcard) of the 1964 EBCDIC character set
 Also known as - the root source of technical debt for what I'm going to talk about
 
 ---
-# Some Background
+# A [Very] Brief History (Banking)
 
 --
 
---
+![:scale 80%](img/ledger.png)
 
 ???
 
----
-# Glossary of Terms
+Ledgers and bookkeeping
 
-* Batch
-
-* EFT
-
-* Real Time
-
-* EBCDIC
+How financial transactions have been tracked for hundreds of years
 
 ---
-https://www.numeral.io/blog/bank-file-message-formats
+# A [Very] Brief History (Banking)
 
-0. Bespoke TXT -
-1. BAI / BAI2 - 
-2. Bacs Standard 18 (UK) - 
-3. APACS 70 / ISO8583 - 
-4. ACH’s NACHA (US) - 
-5. CFONB files - https://www.cfonb.org/
-6. Swift MT messages - https://www2.swift.com/knowledgecentre/publications/us9m_20240719/2.0?topic=mt940-format-spec.htm
-7. ISO 20022 messages - https://www.iso20022.org/iso-20022-message-definitions
-8. Shiny New APIs? - GoCardless, Stripe, etc?
+![:scale 100%](img/CalculatingMachinePatentBurroughs.jpg)
+
+???
+
+Then automation starts to appear at the end of the 19th century
+
+A patent for a mechanical adding machine, from 1888
 
 ---
-class: center, middle
+# A [Very] Brief History (Banking)
 
+![:scale 80%](img/tc500.png)
+
+???
+
+Some time in the late 1950's and early 1960's computers, terminals, and mainframes are adopted in the banking industry
+
+This is an example of one type of terminal from Burroughs, several other manufacturers had their own, however IBM and Burroughs were the two key players
+
+---
+# A [Very] Brief History (Banking)
+
+![:scale 100%](img/cobol.png)
+
+???
+
+The key being these things supported COBOL
+
+---
+# A [Very] Brief History (Banking)
+
+![:scale 80%](img/tc500_punchcard.png)
+
+???
+
+And peripherals to read/write punch cards
+
+And these kind of terminals became very widely adopted
+
+So, of course, any standards and constraints of the systems being used became... widely adopted
+
+Some of these standards and constraints persist to this day, 60 years later
+
+---
+# Interchange Format "Standards"
+
+--
+
+1. Proprietary Formats
+2. BAI2
+3. Bacs Standard 18
+4. APACS
+5. ISO 8583
+6. NACHA
+7. Swift
+8. ISO 20022 messages
+9. Shiny New APIs (GoCardless, Stripe, etc)
+10. Open Banking APIs
+
+???
+
+These are what I'm going to cover
+
+They're all used (in the examples here) to do things like:
+
+ * Move money from one account to another
+
+ * Request an authorisation for a payment
+
+ * Query balance information
+
+ * Provide account statement data
+
+ * And many other things
+
+---
+# Proprietary Formats
+
+--
+
+* You'll find these everywhere, used for all sorts of integrations like I just mentioned:
+
+ * Batches of payments
+ * Authorisations
+ * Payment/Account queries
+ * Etc
+
+--
+
+* Often derivatives of existing standards
+
+???
+
+Uncanny valley type stuff - they'll look familiar to ones you might have encountered, or even worked with, but have subtle differences
+
+--
+
+* Or just completely bespoke stuff
+
+--
+
+* Usually decades old
+  * Most "modern" banks will have adopted a standard format
+
+???
+
++++
+
+Banks move at a glacial pace, so interchange formats and specs are
+rarely updated and never (?) deprecated or replaced
+
+Given how quickly the glaciers are melting i'm not sure that metaphor
+is appropriate anymore
+
+---
+# Proprietary Formats (Example)
+
+```
+000L2025043003117PAYPROP                       000000200000
+001L04A0222505012505012505012505010000430002SAMEDAY   Y
+001L5063200504060002719A02200004325065500000165557100000044002250501440   
+    PAYPROP   SETTLEMENT-001      PARADISE PROPERTIES           0000000
+    0000000000000                21
+...
+001L92A0220000430000482505012505010000050000010000010000001807620000001
+    80762004060830504
+020L04A0242504302504302504302504300000010001BATCH     Y
+020L1063200504060002719A02400000105100100000165557100000102886250430880   
+    PAYPROP   202448148           MARIO BROS. PLUMBER           0000000
+    0000000000000                21
+020L1063200504060002719A02400000405100100000165557100000158252250430880   
+    PAYPROP   202714833           MARIO BROS. PLUMBER           0000000
+    0000000000000                21
+...
+020L1263200504060002719A02400001163200504060002719100002022340250430100
+    000PAYPROP   CONTRA 5 PPAYMENT
+020L92A0240000010000112504302504300000010000100000010000020223400000020
+    22340004061658289
+999L000000023
+```
+
+???
+
+Wrapped to fit on the slide
+
+Somewhat opaque (not human friendly)
+
+Contains various identifying information
+
+Account numbers, branch codes, amounts, etc
+
+This is from our test suite for one of our banking integrations
+
+Batches of payments to credit various beneficiaries
+
+---
+# Proprietary Formats (Example)
+
+So how would you parse/create something like:
+
+```
+020L1063200504060002719A02400000105100100000165557100000102886250430880   
+PAYPROP   202448148           MARIO BROS. PLUMBER           0000000
+0000000000000                21
+```
+
+--
+
+* pack/unpack - `my ( @fields ) = unpack( 'A3 A1 A2 ...',$line );`
+
+--
+
+* regexp - `/^020L(?<trans_type>\d{2}).../`
+
+--
+
+* split / string concatenation / sprintf?
+
+--
+
+* custom grammar?
+
+--
+
+* template?
+
+???
+
+I think for most, if not all of the formats, the point is that the parsing and creation is trivial, especially with Perl
+
+Perl makes this really easy
+
+And test coverage on this is also really easy
+
+---
+# BAI2
+
+--
+
+* BAI: Bank Administration Institute
+
+--
+
+* Account statement and reporting data
+
+--
+
+* Roots from a related format in 1971
+  * Formalised in 1980
+  * BAI2 released in 1987
+
+???
+
+Yep, it's still being used almost 40 years later
+
+--
+
+* A CSV but restricted to 80 chars (punch card lineage...?)
+  * Uses "Continuation Records" to get around that
+
+---
+# BAI2 (Example)
+
+* Statement data:
+
+```
+03,222222222,AUD,015,10000009,100,000,102,000,400/
+88,125555,402,400,500,40009,501,50009,502/
+88,200009,503,200009,965,000,966,000/
+88,967,000,968,000,969,070/
+16,495,450000,0,0,INTERNET TRANSFER
+88,Internet Transfer PYMT-ID 999999999 AA to 123/
+```
+
+???
+
+Briefly:
+
+* Comma separated fields
+
+* First two chars are the record type
+
+* Trailing slash marks end of the record
+
+* But can continue if the next line is an 88 record
+
+* So you need to keep state when parsing it?
+
+--
+
+* First pass: put the records back together
+
+--
+
+* Second pass: just treat it like a CSV
+
+ * We're not constrained to a max of 80 chars
+
+---
+# Bacs Standard 18
+
+--
+
+* Bankers' Automated Clearing Services
+
+--
+
+* Standard 18 is *at least* 25 years old (?)
+
+ * But really goes back to the late 1960s / early 1970s
+
+???
+
+It can be difficult to put together the history of some of this stuff
+
+--
+
+* Pretty much all UK banks speak to one another using this format
+
+--
+
+* Widely adopted, in one form or another, in many other countries
+
+???
+
++++
+
+You'll find loads of other specs that look near identical to this format
+
+---
+# Bacs Standard 18 (Example)
+
+```
+VOL1SERIAL                        888888                                      1
+HDR1A888888S      SERIAL00010001         16001 16050 000000
+HDR2F02000000100                                                   00
+UHL1 1600499999      00000001 DAILY 001
+111111111111111109940281112345678     0000000000101ORIGINATORS NAME  
+    REF FOR BENE     BENE NAME
+222222222222222209940281112345678     0000000000101ORIGINATORS NAME  
+    REF FOR BENE     BENE NAME
+402811123456709740281112345678        00000000005REF FOR DEBIT ACC 
+    CONTRA      ORIGINATORS NAME
+EOF1A888888S      SERIAL00010001         16001 16050 000000
+EOF2F02000000100                                                   00
+UTL10000000000050000000000000000001 0000005
+```
+
+???
+
+Similar to the first example (fixed width text)
+
+Maybe a little more legible?
+
+Headers, footers, etc, a bit more white space?
+
+---
+# APACS
+
+--
+
+* Various hand-wavy standards:
+
+--
+
+  * APACS 18 - BACS Interchange Standards (a ha!)
+  * APACS 29 - Data Formats For Interchange
+  * APACS 60 - UK Spec For ... Card Acceptor and Acquirer
+  * APACS 70 - Card Acceptor To Acquirer Interface Standards
+
+--
+
+* APACS doesn't create specifications
+
+--
+
+  * They define *standards for* specifications
+
+--
+
+  * Meta specifications?
+
+--
+
+* So every bank creates their own specifications based on these standards
+
+--
+
+&nbsp;&nbsp;&nbsp;&nbsp;<font size="100%">😭</font>
+
+???
+
+Like that XKCD comic about standards
+
+---
+# APACS (Example)
+
+* Credit/Debit Card Authorisation Message:
+
+```
+40000878612344188B29876543214921123412341234011078651237890112345
+	123456789030826GBP06304800101D0C200AAABB3FDkAAAAAFZFEOQAAAAAAA=
+	dm0tZGV2My1MSi5jYkbGSMTmBwA=05
+
+40000878612344188B29876543214921123412341234011078651237890112345
+	123456789032826GBP06
+
+40000878612344188B298765432149211234123412340110011237890112345
+	32826GBP06
+```
+
+???
+
+Whenever you make a payment online, use a card terminal, use an ATM, etc
+
+This is the string sent to the acquiring bank
+
+For the most part, it has been replaced by another format
+
+If you look at the ends of the bottom two you can see they have different formats
+
+How do you think this is parsed correctly?
+
+--
+
+* Nonprintable Characters \o/
+
+--
+
+* You split up or construct the full string using various separators
+
+???
+
++++
+
+Actually these are quite useful and the implementation is elegant
+
+They're a hangover from the early definition of the ASCII standard
+
+I don't know how common these are in other IPC and interchange message formats?
+
+---
+# APACS (Example)
+
+![:scale 100%](img/digraphs.png)
+
+???
+
+These are the same text strings in vim
+
+You can see all the characters, and a useful feature of vim is when you put your cursor over a character you can hit `GA` to see its decimal, hex, octal, and digraph details
+
+ASCII group, record, unit, and field separators
+
+Also the start and end of message markers
+
+It's a bit easier to see the various parts of the message here: card number, currency code, etc
+
+This was clearly designed for narrow bandwidth constraints
+
+---
+# ISO 8583
+
+???
+
+If it has been replaced then this is the format that will be used
+
+--
+
+* An ISO standard
+
+--
+
+* 1987, 1993, and 2003 versions
+
+???
+
+So we're still talking 40 years old in some cases
+
+--
+
+* Much like APACS it's a meta specification
+
+--
+
+* Although is a self describing format
+
+  * More difficult for those creating a spec to deviate
+
+  * No annoying/nasty surprises
+
+???
+
++++
+
+What I mean by that is (next slide)
+
+---
+# ISO 8583
+
+```
+03480100723E648108E180101612341234123412340000000000000123450715123456
+0009871234561215080907151234826812800612345683661200123412345678123456
+...
+```
+
+???
+
+The first part of this message (which I have truncated quite significantly) has...
+
+--
+
+* Message length - `0348`
+
+--
+
+* Message type indicator (MTI) - `0100`
+
+  * Version (1987, 1993, ...)
+  * Class (e.g. "Authorisation")
+  * Function (e.g. "Request")
+  * Origin (e.g. "Acquirer")
+
+--
+
+* One or more bitmaps - `723E648108E18010`
+
+  * Indicating which data elements are present.
+  * Consists of primary bitmap and optional secondary bitmap.
+  * Primary bitmap indicates if there is a secondary bitmap
+
+???
+
++++
+
+Most importantly: bitmaps
+
+Bitmaps mean the message can grow or shrink as necessary - no wasted space on empty space or zero padded fields
+
+The vast majority of data being sent around the banking networks is padding: wasted space
+
+Does mean it's somewhat opaque to human readability however
+
+--
+
+* Data elements, the actual information fields of the message
+
+???
+
++++
+
+After all that you then get the content of the message
+
+---
+# ISO 8583
+
+* Which parses to (some data removed for brevity):
+
+```
+{
+    "settlement_date"           => "0715",
+    "system_trace_number"       => "000987",
+    "transaction_date_and_time" => "0715123456",
+    "descriptive_data"        => {
+        "address_numeric_data" => "123",
+        "postal/zip_code"      => "30",
+        "cvv"                  => "123"
+    },
+    "transaction_currency_code"  => "392",
+    "transaction_amount"         => 12345,
+    "terminal_country_code"      => "826",
+    "card_details"               => {
+        "expiry_date" => "0809",
+        "pan"         => "1234123412341234"
+    },
+},
+```
+
+???
+
+I've removed quite a bit of stuff to fit it on the slide
+
+---
+# NACHA
+
+--
+
+* **N**ational **A**utomated **C**learing**h**ouse **A**ssociation
+
+--
+
+* Electronic movement of money and data in the United States
+
+???
+
+They write the standards, offer accreditation programs, and run a lot of the infrastructure
+
+--
+
+* Roots in the early/mid 1970s
+
+---
+# NACHA (Example)
+
+![:scale 100%](img/nacha.png)
+
+???
+
+Are we seeing a recurring theme here?
+
+Most older formats are minor variations of each other.
+
+So I'm not showing the plain text, just the basic structure
+
+It's yet another fixed width plain text format
+
+--
+
+* But cheques are still a thing...
+
+???
+
++++
+
+They're still used extensively, and there are automated systems in place to deal with them
+
+I hate it, I absolutely hate it
+
+I may give a lightning talk about it as I don't have time to rant here
+
+---
+# Swift
+
+--
+
+* An open global standard for financial information
+
+???
+
+Alright, we're getting somewhere!
+
+--
+
+* SWIFT means several things in the financial world
+
+???
+
+1. a secure network for transmitting messages
+2. a set of syntax standards for financial messages
+3. a set of connection software and services
+
+--
+
+* Messages categories:
+
+  * 1 - Customer Payments and Cheques
+  * 2 - Financial Institution Transfers
+  * 3 - Treasury Markets - FX, Money Markets and Derivatives
+  * 4 - Collections and Cash Letters
+  * 5 - Securities Markets
+  * 6 - Reference Data
+  * 6 - Treasury Markets - Commodities
+  * 7 - Documentary Credits and Guarantees/Standby Letters of Credit
+  * 8 - Travellers Cheques
+  * 9 - Cash Management and Customer Status
+  * n - Common Group Messages
+
+--
+
+* [Knowledge Centre](https://www2.swift.com/knowledgecentre/products/Standards%20MT/publications)
+
+---
+# Swift (Example, MT940)
+
+* Statement data:
+
+```
+{1:F01BANKCATTXXXX328147328147}
+{4
+:20:000027481918BCC
+:25:000027481918
+:28C:125/1
+:60F:C220504CAD212929,13
+:61:220504D75,10NMSCNOREF
+DEBIT MEMO
+:86:SETTLEMENT:1730
+CIBC DATA CENTRE: 21
+:61:220504C2662,87NDCRNOREF
+MISCELLANEOUS PAYMENT
+:62F:C220504CAD215685,93
+-}
+```
+
+???
+
+You can see various expected statement data here
+
+--
+
+61 - `6!n[4!n]2a[1!a]15d1!a3!c16x[//16x]<crlf>[34x]`
+
+???
+
+The spec has this kind of custom grammar
+
+Again, all this stuff is relatively easy to parse/create
+
+---
+# Swift (Example, MT940)
+
+* Annoying inconsistencies
+
+```
+6!n
+
+	(Value Date)
+
+[4!n]
+
+	(Entry Date)
+```
+
+???
+
+Six digits for dates, rather than eight
+
+And then different date formats
+
+--
+
+* So of course:
+
+```perl
+$value_date =~ /(\d\d)(\d\d)(\d\d)/;
+$value_date = DateTime->new({
+    year  => "20$1", # Yaaaaargh2K never happened?
+    month => $2,
+    day   => $3
+});
+```
+
+---
+# ISO 20022 messages
+
+--
+
+* A single standardisation approach
+
+  * Methodology, process, repository
+  * To be used by all financial standards initiatives
+
+???
+
+Introduced by SWIFT
+
+--
+
+The current edition of the standard includes eight parts, published in May 2013:
+
+ * ISO 20022-1: Metamodel
+ * ISO 20022-2: UML profile
+ * ISO 20022-3: Modelling
+ * ISO 20022-4: XML schema generation
+ * ISO 20022-5: Reverse engineering
+ * ISO 20022-6: Message transport characteristics
+ * ISO 20022-7: Registration
+ * ISO 20022-8: ASN.1 generation
+
+---
+# ISO 20022 messages
+
+* A single standardisation approach
+
+  * Methodology, process, repository
+  * To be used by all financial standards initiatives
+
+The current edition of the standard includes eight parts, published in May 2013:
+
+ * ISO 20022-1: Metamodel
+ * ISO 20022-2: UML profile
+ * ISO 20022-3: Modelling
+ * ISO 20022-4: XML schema generation
+ * ISO 20022-5: **Reverse engineering**
+ * ISO 20022-6: Message transport characteristics
+ * ISO 20022-7: Registration
+ * ISO 20022-8: ASN.1 generation
+
+???
+
+Wait... what?
+
+I was so curious about this one I was going to purchase the standard, but...
+
+---
+# ISO 20022 messages (Example)
+
+![:scale 70%](img/iso_rev.png)
+
+???
+
+I didn't want to pay 177.- CHF 
+
+That's just for *this* document, none of the others.
+
+Anyway, it's described as:
+
+"ISO 20022-5:2013 was prepared to complement ISO 20022-1:2013. The reverse engineering guidelines explain how to extract relevant information from existing IndustryMessageSets in order to prepare the submission to the ISO 20022 Registration Authority of equivalent, ISO 20022 compliant BusinessTransactions and MessageSets."
+
+---
+# ISO 20022 messages (Example)
+
+???
+
+But anyway, an example of a message (heavily truncated for brevity)
+
+--
+
+* "PAIN" for payments (**pa**yments **in**itiation)
+
+```xml
+ <TxInfAndSts>
+    <OrgnlInstrId>null</OrgnlInstrId>
+    <OrgnlEndToEndId>31755705</OrgnlEndToEndId>
+    <TxSts>ACSP</TxSts>
+    <StsRsnInf>
+        <Rsn>
+            <Cd>NARR</Cd>
+        </Rsn>
+    </StsRsnInf>
+</TxInfAndSts>
+```
+
+--
+
+* 2013: peak Java Enterprise XML stuff
+
+???
+
++++
+
+I appreciate that the SWIFT people are smart, but who designed this?
+
+Why abbreviate XML elements node names, and why this poorly?
+
+Acknowledgement has a shorter abbreviation than Acknowledged
+
+French is abbreviated to Frnch - why even bother?
+
+It can't be about filesizes because:
+ * XML
+ * If they abbreviated EndToEnd to E2E they would save 1kb for every 200 transactions
+
+This must be a nightmare if you're not a native English speaker
+
+I'm sure if I pay the almost 1,000.- CHF fee to get all 8 standards it will make sense
+
+Maybe
+
+--
+
+* This is the future of interchange formats
+
+ * Many banks are already in the process of supporting it
+
+---
+# Shiny New APIs (GoCardless, Stripe, etc)
+
+--
+
+* Modern
+
+--
+
+* Lots of third party libraries available
+
+--
+
+* RESTful \o/
+
+???
+
+Remember what Lee says REST stands for?
+
+"Reinvented Every Single Time"
+
+--
+
+* These are very nice to deal with
+
+???
+
++++
+
+But seriously, these are nicer and easier to deal with than direct banking integrations
+
+--
+
+* But just abstracting away everything we've seen in the previous slides
+
+  * So that comes with an added cost
+
+--
+
+* If you reach sufficient size/volume/scale you'll want to DIY
+
+???
+
++++
+
+Because they will get expensive at scale
+
+We use GoCardless in the UK for direct debits
+
+---
+# Open Banking APIs
+
+???
+
+You may have heard about these
+
+--
+
+* Mostly consumer facing, not backend "batch payment" type stuff
+
+???
+
++++
+
+Which means they don't solve the problems/use cases we're talking about
+
+However...
+
+--
+
+* Companies are addressing some of the use cases
+
+???
+
+Basically putting the various pipes (APIs) together to replicate some backend flows
+
+--
+
+* https://openbankingtracker.com/
+
+???
+
+Open if time, search for Revolut compare to Barclays
+
++++
+
+See who offers what
+
+---
+# Open Banking APIs
+
+* TrueLayer
+
+![:scale 80%](img/truelayer.png)
+
+???
+
+We're using TrueLayer in the UK, they've built their product on Open Banking APIs
+
+It effectively replaces direct debits (GoCardless)
+
+Lower fees
+
+Easier reconciliation, mostly automatic in fact
+
+I know bank payments have been relatively trivial in most of the EU for years
+
+The UK is catching up
+
+North America is massively behind (still)
+
+This kind of stuff might actually threaten Visa/Mastercard domination in the longer term
+
+---
+# General Gotchas
+
+--
+
+* Sequence Numbers
+
+???
+
+Sensible but also annoying - load balancing issues
+
+Makes sure files are processed in order
+
+--
+
+* Fixed field/line widths
+
+???
+
++++
+
+Lack of validation - the RBS line concatenations due to null bytes example?
+
+--
+
+* Inconsistent formats
+
+???
+
++++
+
+We send batch file using an ancient fixed width text format
+
+They acknowledge that with an XML file
+
+This is both surprising and understandable - the acknowledgement process was probably bolted on decades after the original implementation, or that was the easiest thing (effort/risk) to convert to a modern message format
+
+--
+
+* Y2K never happened?
+
+???
+
++++
+
+Dates are frequently shown or required in the two digit year format
+
+Because the specs date from 40 or more years ago
+
+--
+
+* Far too many obscure acronyms and abbreviations
+
+---
+# General Gotchas
+
+???
+
+Yes, page two of gotchas
+
+--
+
+* Mistakes in specifications
+
+???
+
++++
+
+I am not exaggerating when I say I have found multiple errors or inconsistencies in every single banking specification I have worked with - including those from official sources and ISO based ones.
+
+These are often examples that contradict the surrounding spec, transliteration errors, or just out of date information.
+
+I'm not being snarky here, It's just the nature of having multiple hundred page documents of dry repetitive technical information, iterated on over decades. It's some sort of technical semantic satiation.
+
+--
+
+* Rarely, if ever, see Changelog(s) in specs
+
+???
+
++++
+
+I find this really annoying
+
+They'll send an updated version of the spec, giving no clues as to what changed
+
+These are often multiple hundred page PDF documents
+
+SWIFT do show changes, but don't publish a full historic Changelog
+
+--
+
+* Specifications are hard to find
+
+???
+
++++
+
+If I got to the BACS site... I can't find the specs
+
+When I think i've found them they require registration
+
+This is ridiculous
+
+Like this antiquated not-quite-standard is some industry secret
+
+You need to pay APACS several hundred euros to access their standards
+
+--
+
+* Specification docs are hostile to users
+
+???
+
++++
+
+Lacking Changelogs is one example
+
+The other is they lack complete examples of what the spec is describing
+
+We have a 200 page spec for one of our banking partners, with *zero* examples of what it's describing
+
+Then you get specs that are describing plain text formats that do include examples [next slide]
+
+---
+# Gotchas
+
+![:scale 60%](img/bacs_gpt.png)
+
+???
+
+The BACS 18 example from earlier was an embedded image in the spec
+
+That I fed through ChatGPT to convert to plain text
+
+This is ridiculous as well - it's plain text, just use plain text and not an image
+
+---
+# The State of CPAN
+
+--
+
+* Little to no code out there to parse/create these formats
+
+???
+
+Maybe not so surprising? This is backend of the backend type stuff
+
+Maybe not many Perl shops were or are doing this
+
+Or the code was too tightly coupled to their business logic?
+
+Most are relatively simple to parse/create so they weren't factored out?
+
+--
+
+* A few bits and pieces for the more "modern" formats
+
+???
+
+Mark (Overmeer) has a distribution for one of the ISO 20022 formats
+
+Updated very recently (thumbs up)
+
+--
+
+* Those that do exist are out of date
+
+--
+
+* Or have little to no test coverage
+
+???
+
++++
+
+I found a few things on github, in Perl, but these don't appear to be production level stuff
+
+--
+
+* There's lots of libraries in other languages
+
+???
+
++++
+
+That have good test coverage and are actively maintained
+
+--
+
+* More modern RESTful type stuff does have CPAN
+
+  * Business::GoCardless
+  * Business::TrueLayer
+  * Business::Monzo
+
+???
+
+Because I wrote some of it
+
+---
 # Questions / Comments?
+
+References:
+
+* https://www.numeral.io/blog/bank-file-message-formats
+* https://condor.depaul.edu/sjost/lsp121/documents/ascii-npr.htm
+* https://en.wikipedia.org/wiki/ISO_8583
+* https://medium.com/@bayram.serkan/explaining-iso-8583-messages-7def9bbc5b3c
+* https://paymentcardtools.com/iso-8583-bitmap
+* https://achdevguide.nacha.org/ach-file-overview
+* https://www2.swift.com/knowledgecentre/publications/us9m_20240719/2.0?topic=mt940-format-spec.htm
+* https://www.iso20022.org/iso-20022-message-definitions
+* https://www.iso20022.org/sites/default/files/media/file/XML_Tags.pdf
+* https://www.cfonb.org/
+* https://bitsavers.org/pdf/burroughs/Series_L/TC500/1032877_Burroughs_TC500_Terminal_Computer_Brochure_197003.pdf
+
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js" type="text/javascript">
